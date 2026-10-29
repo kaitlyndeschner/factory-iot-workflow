@@ -1,110 +1,285 @@
-# factory-iot-workflow
-An Industrial IoT workflow prototype for real-time communication and event-driven coordination between departments in a food manufacturing facility.
+# Factory IoT Workflow Simulation
 
-This project is a small local IoT simulation, not a production factory system. It demonstrates:
+This project simulates production updates between six departments in a food manufacturing factory: Warehouse, Dispensary, Decant, ELPO, End of Line (EOL) and Group Leader Office (GLO). Python applications publish and receive MQTT messages through an Eclipse Mosquitto broker. Docker Compose runs the services together on a local computer.
 
-IoT communication: Six simulated departments exchange timely MQTT events.
-Automation: A compose.yaml file starts the same containerised services with one command.
-Cybersecurity: Password authentication, department-specific topic permissions and actual MQTT security tests.
-Critical evaluation: Limits such as lack of TLS, a single broker, simulated events and no machine integration.
-No dashboard, frontend, SAP, Excel or other features are included. The terminal logs are the demonstration. Decant is the dry-ingredient mixing department.
+The simulation is intended for testing messaging, deployment and access control. It does not connect to factory machinery or production systems.
 
-1. Start on Windows
-Requirements: Docker Desktop (running in Linux-container mode); Python installed so py works. You do not need to install Python packages on Windows, because the apps run inside Docker.
+## Requirements
 
-Open PowerShell, then run these commands from the folder containing compose.yaml:
+- Windows with Docker Desktop running in Linux container mode
+- Python 3 (for the initial setup script)
+- PowerShell or a VS Code terminal
+
+## 1. Installation and Setup
+
+Extract the project folder, open PowerShell and run:
+
+```powershell
 cd "FILE_PATH"
-dir
 py setup_demo.py
 docker compose up --build -d
 docker compose ps
-The first setup command creates new, random passwords in .env and will not overwrite existing ones. Never show .env in a screenshot or put it on GitHub. init-auth is a one-shot container that should finish successfully and may appear as Exited (0); the broker and six department containers should be running.
+```
 
-If PowerShell says py is missing but you have Python 3 installed, try python setup_demo.py instead. If Docker cannot start, open Docker Desktop first.
+`setup_demo.py` creates a `.env` file containing separate passwords for each MQTT account. It does not replace existing credentials unless instructed.
 
-Live production logs
-docker compose logs -f --tail=30 warehouse dispensary decant elpo eol group-leader-office
-Wait about 20 seconds for a whole simulated production chain to appear. A new batch begins approximately every 60 seconds. A matching batch ID (e.g. B0001) should appear across departments. Press Ctrl+C to leave log-following mode; this does not stop Docker.
+The `.env` file should remain private and must not be uploaded to a public GitHub repository.
 
-Sender	Event names	Main recipients
-Dispensary	SHORT_WEIGHTS_STARTED, SHORT_WEIGHTS_COMPLETE	Decant receives SHORT_WEIGHTS_COMPLETE; Office monitors both
-Decant	MIXING_STARTED, MIXING_COMPLETE	ELPO receives MIXING_COMPLETE; Office monitors both
-ELPO	ELPO_STARTED, ELPO_COMPLETE	EOL receives ELPO_COMPLETE; Office monitors both
-EOL	EOL_STARTED, EOL_COMPLETE	Warehouse receives EOL_COMPLETE; Office monitors both
-Warehouse	DISPENSARY_DISPATCHED, DISPENSARY_DELIVERED, DECANT_DISPATCHED, DECANT_DELIVERED, EOL_RECEIVED, SHIPMENT_DISPATCHED	Relevant recipient (Dispensary, Decant, EOL) and Office
-Group Leader Office	PRODUCTION_SCHEDULE_UPDATED, BATCH_CHANGE, BREAKDOWN_REPORTED, PRODUCTION_RESUMED	Schedules go to all, batch/resume notices go to the selected department, breakdowns are reported to Group Leader Office
-The breakdown report is sent by the affected department and received by the Group Leader Office. The group leader authorises production resumption. The group leader also receives other departmental events for coordination.
+The `init-auth` service generates the MQTT broker password file and then exits. An `Exited (0)` status is normal. The broker and six department services should remain running.
 
-Example event chain
-WAREHOUSE:    DISPENSARY_DISPATCHED -> DISPENSARY_DELIVERED
-WAREHOUSE:    DECANT_DISPATCHED     -> DECANT_DELIVERED
-DISPENSARY:   SHORT_WEIGHTS_STARTED -> SHORT_WEIGHTS_COMPLETE
-DECANT:       MIXING_STARTED        -> MIXING_COMPLETE
-ELPO:         ELPO_STARTED          -> ELPO_COMPLETE
-EOL:          EOL_STARTED           -> EOL_COMPLETE
-WAREHOUSE:    EOL_RECEIVED          -> SHIPMENT_DISPATCHED
-The events are generated using simulated delays; real ingredient handling and production do not occur. The group leader office prints updates for all five operational departments.
+### Viewing Live Production Events
 
-2. Group Leader Office — manual updates (no user interface)
-Run these commands from a second PowerShell window while the containers are running.
+To follow the live messages:
 
-A. Change the weekly production schedule — broadcast to all departments:
+```powershell
+docker compose logs -f --tail=30 warehouse dispensary decant elpo eol glo
+```
 
-docker compose run --rm office-cli schedule --batch B0001 --schedule "Friday 09:00" --detail "Production moved to Friday morning"
-B. Notify Decant about a batch change — only Decant receives this target topic:
+Events are generated automatically. Warehouse starts a new simulated batch approximately every 60 seconds.
 
-docker compose run --rm office-cli batch-change --department decant --batch B0001 --detail "Switch to batch B0001 revision 2"
-C. Simulate an equipment breakdown reported by ELPO to the Office:
+Each batch is assigned an identifier that can be followed through the departments' logs to track production updates.
 
-docker compose run --rm elpo python -m app.cli breakdown --batch B0001 --reason "Filling equipment stopped"
-The ELPO subscriber also receives its own breakdown notice and pauses further simulated processing. Group Leader Office receives the report.
+Press `Ctrl+C` to stop following the logs. The containers will continue running.
 
-D. Office notifies ELPO that production can resume:
+## 2. Production Events
 
-docker compose run --rm office-cli resume --department elpo --batch B0001 --detail "Fault cleared, production may resume"
-E. OPTIONAL — automatically generate two schedule changes:
+The simulation represents production activities across six departments.
 
-docker compose run --rm office-cli auto-schedule --count 2 --interval 30
-Automatic production events run by default; automatic schedule updates are off until you run the command above, making it easier to demonstrate manual changes without interference.
+| Department | Event | Description |
+|---|---|---|
+| Warehouse | `DISPENSARY_DISPATCHED` | Ingredients dispatched to Dispensary |
+| Warehouse | `DISPENSARY_DELIVERED` | Ingredients delivered to Dispensary |
+| Warehouse | `DECANT_DISPATCHED` | Ingredients dispatched to Decant |
+| Warehouse | `DECANT_DELIVERED` | Ingredients delivered to Decant |
+| Warehouse | `EOL_RECEIVED` | Finished pallets received from EOL |
+| Warehouse | `SHIPMENT_DISPATCHED` | Finished products dispatched for shipment |
+| Dispensary | `SHORT_WEIGHTS_STARTED` | Ingredient weighing and preparation started |
+| Dispensary | `SHORT_WEIGHTS_COMPLETE` | Ingredient weighing and preparation completed |
+| Decant | `MIXING_STARTED` | Dry ingredient mixing started |
+| Decant | `MIXING_COMPLETE` | Dry ingredient mixing completed |
+| ELPO | `ELPO_STARTED` | Product filling started |
+| ELPO | `ELPO_COMPLETE` | Product filling completed |
+| EOL | `EOL_STARTED` | Palletising and labelling started |
+| EOL | `EOL_COMPLETE` | Palletising and labelling completed |
+| GLO | `PRODUCTION_SCHEDULE_UPDATED` | Production schedule update issued |
+| GLO | `BATCH_CHANGE` | Production batch change issued |
+| Department | `BREAKDOWN_REPORTED` | Equipment breakdown reported to GLO |
+| GLO | `PRODUCTION_RESUMED` | Production authorised to resume |
 
-After each command, check receiving logs:
+The simulated production process moves from ingredient delivery and weighing to mixing, filling, palletising and shipment.
 
-docker compose logs --tail=35 dispensary decant elpo eol warehouse group-leader-office
-Messages are not retained if a receiving department is offline; the simulation does not implement an industrial scheduling database or guaranteed replay. The commands publish notifications, not persistent, authoritative schedule records. Batch changes are informational; they do not rewrite the already-running batch sequence.
+GLO receives departmental updates, while other departments receive notifications relevant to their operations.
 
-3. Run real MQTT security checks
+Messages include an event identifier, timestamp, source department and, where applicable, a batch identifier.
+
+## 3. System Architecture
+
+The system uses MQTT publish/subscribe communication.
+
+Each department operates as an independent containerised application. Production messages are published to the MQTT broker and distributed to authorised subscribers.
+
+Docker Compose manages the application services and their networking configuration.
+
+The six departments are:
+
+- **Warehouse:** Supplies ingredients to production departments and handles finished products.
+- **Dispensary:** Weighs and prepares ingredients for Decant.
+- **Decant:** Mixes dry ingredients.
+- **ELPO:** Fills products into packaging.
+- **EOL:** Palletises, labels and prepares finished products for Warehouse.
+- **GLO:** Coordinates production schedules, communicates batch changes, monitors breakdowns and authorises production resumption.
+
+MQTT topics and access-control rules determine which departments can publish and receive specific messages.
+
+## 4. Group Leader Access Control
+
+Production schedule updates, batch changes and production-resumption notices can only be published using authorised Group Leader accounts.
+
+Two demonstration accounts are configured:
+
+- `group_leader_1`
+- `group_leader_2`
+
+Each account has a separate password generated during setup.
+
+### Account Permissions
+
+| Account | Permissions |
+|---|---|
+| `group_leader_1` | Publish schedule changes, batch changes and production-resumption notices |
+| `group_leader_2` | Publish schedule changes, batch changes and production-resumption notices |
+| `glo` | Read-only monitoring of departmental production events |
+| Department accounts | Publish departmental events, report breakdowns and receive relevant updates |
+
+The MQTT broker enforces authentication and topic permissions using the rules defined in `broker/aclfile`.
+
+Department accounts cannot publish protected group leader updates.
+
+The simulation distributes production notifications but does not maintain or modify a real production scheduling database.
+
+## 5. Manual Production Updates
+
+Open a second PowerShell window in the project directory to send manual production updates.
+
+Protected commands require authentication using an authorised Group Leader account.
+
+### Production Schedule Update
+
+```powershell
+docker compose run --rm glo-cli schedule --batch B0001 --schedule "Friday 09:00" --detail "Production moved to Friday morning"
+```
+
+This publishes a `PRODUCTION_SCHEDULE_UPDATED` event to all departments.
+
+### Batch Change
+
+```powershell
+docker compose run --rm glo-cli batch-change --department decant --batch B0001 --detail "Switch to batch B0001 revision 2"
+```
+
+This publishes a `BATCH_CHANGE` event to Decant.
+
+### Breakdown Report
+
+```powershell
+docker compose run --rm elpo python -m app.cli breakdown --batch B0001 --reason "ELPO equipment stopped"
+```
+
+This allows ELPO to report an equipment breakdown to GLO.
+
+### Production Resumption
+
+```powershell
+docker compose run --rm glo-cli resume --department elpo --batch B0001 --detail "Fault cleared, production may resume"
+```
+
+This publishes a `PRODUCTION_RESUMED` notification to ELPO following Group Leader authorisation.
+
+### Viewing Department Messages
+
+```powershell
+docker compose logs --tail=40 dispensary decant elpo eol warehouse glo
+```
+
+### Automatic Schedule Updates
+
+The system also supports simulated schedule updates.
+
+```powershell
+docker compose run --rm glo-cli auto-schedule --count 2 --interval 30
+```
+
+This generates two schedule updates at 30-second intervals following group leader authentication.
+
+Automatic production events run by default. Automatic schedule updates must be triggered separately.
+
+## 6. Security Testing
+
+The project includes MQTT integration tests for authentication, access control and message delivery.
+
+Run:
+
+```powershell
 docker compose run --rm security-tests
-The code tests these four behaviours against the running broker:
+```
 
-A client with a wrong password is rejected.
-A TM account cannot publish a production schedule change.
-Production schedule updates reaches all five operational departments.
-A targeted Decant batch change is accessible to Decant, but EOL cannot subscribe to Decant's private batch topic.
-The expected output is RESULT: 4/4 PASSED only if your own integration test completes successfully. The tests use MQTT version 5.0 acknowledgements and subscriptions, not just mock logic.
+The security tests verify:
 
-4. Cybersecurity and scope limitations for critical evaluation
-Authentication and authorisation: Mosquitto denies anonymous connections and uses a hashed password database plus per-user topic read/write ACLs. Only Group Leader Office can publish schedule, batch change and resumption notices; the affected department can publish a breakdown report.
-MQTT broker is not published outside Docker. No web dashboard or host-exposed port is needed.
-No MQTT TLS: network traffic is not encrypted on the private Docker bridge. A real industrial deployment needs encryption and protected credentials.
-Single broker: this is a possible availability failure point. There is no redundancy, message persistence, external identity provider or hardware integration.
-Simulated automation: MQTT notifications are independent of physical machinery. The system does not validate actual operator permissions or manage a real production schedule. The simple pause/resume behaviour is educational only.
-Repeatability: Compose definitions make it easy to restart the same services, but this alone does not prove a speed, resilience or energy-efficiency benefit.
-Never connect this project to production systems. It is only for a local academic demonstration.
+1. MQTT connections using incorrect passwords are rejected.
+2. Department accounts and the read-only GLO account cannot publish protected production updates.
+3. Authorised Group Leader accounts can publish schedule, batch and resumption updates.
+4. Production schedule updates reach all five operational departments.
+5. Batch changes reach the selected department without being distributed to unrelated departments.
+6. Breakdown reports are delivered to GLO.
 
-5. Useful commands
-# Show container status
+The expected output is:
+
+```text
+RESULT: 6/6 PASSED
+```
+
+Actual results should be verified against the running MQTT broker.
+
+### Python Unit Tests
+
+Run:
+
+```powershell
+py -m unittest discover -s tests -v
+```
+
+These tests check the application's local event-processing and message-routing logic.
+
+## 7. Project Limitations
+
+This project is a local IoT simulation rather than a production-ready industrial control system.
+
+Current limitations include:
+
+- No connection to physical industrial equipment.
+- No integration with SAP or existing factory systems.
+- MQTT communication does not currently use TLS encryption.
+- A single MQTT broker represents a potential point of failure.
+- Production data and events are simulated.
+- Demonstration accounts are used for authentication.
+- Schedule updates are notifications rather than persistent changes to a scheduling database.
+- Docker administrators with access to the local credentials are outside the MQTT account-permission model.
+
+Additional controls, including encrypted communication, monitoring, redundancy and integration testing, would be required before the system could be considered for use in a real manufacturing environment.
+
+## 8. Useful Commands
+
+### Check Container Status
+
+```powershell
 docker compose ps
+```
 
-# Read the most recent logs without leaving PowerShell in follow mode
+### View Recent Logs
+
+```powershell
 docker compose logs --tail=50
+```
 
-# Stop and redeploy with the same configuration (for reproducibility evidence)
+### Restart the Application
+
+```powershell
 docker compose down
 docker compose up -d
+```
 
-# Stop the project when finished
+### Stop the Application
+
+```powershell
 docker compose down
+```
 
-# Run purely local Python unit tests (without Docker, if Python is installed)
-py -m unittest discover -s tests -v
-If you see a credential error after changing .env, passwords inside the existing Docker auth volume must be regenerated too. For a fresh local reset, run docker compose down -v, delete .env, and rerun py setup_demo.py then docker compose up --build -d. This removes only this project's named Docker volume.
+### Reset Local Authentication Data
+
+If MQTT credentials are changed, the broker authentication volume may need to be reset.
+
+```powershell
+docker compose down -v
+```
+
+This removes the project's stored authentication data.
+
+After deleting the existing `.env` file, credentials can be generated again:
+
+```powershell
+py setup_demo.py
+docker compose up --build -d
+```
+
+The reset command should only be used when the existing local authentication data is no longer required.
+
+## 9. Project Documentation
+
+| File | Description |
+|---|---|
+| `README.md` | Project overview and setup instructions |
+| `compose.yaml` | Docker Compose service configuration |
+| `setup_demo.py` | MQTT credential setup |
+| `broker/mosquitto.conf` | MQTT broker configuration |
+| `broker/aclfile` | MQTT access-control rules |
+| `TEST_RESULTS.md` | Test results and observations |
