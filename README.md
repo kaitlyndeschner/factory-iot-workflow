@@ -273,7 +273,7 @@ docker compose up --build -d
 
 The reset command should only be used when the existing local authentication data is no longer required.
 
-## 9. Project Documentation
+## 9. Documentation
 
 | File | Description |
 |---|---|
