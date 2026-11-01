@@ -1,0 +1,21 @@
+.env
+.env.*
+!.env.example
+
+# exclude generated mqtt authentication files
+broker/auth/
+broker/passwords
+
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+.venv/
+venv/
+
+.git/
+
+.vscode/
+
+*.log
