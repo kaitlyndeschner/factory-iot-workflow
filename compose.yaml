@@ -1,0 +1,149 @@
+# defines the factory iot project
+name: factory-iot-glo
+
+# defines shared settings for the department containers
+x-department: &department
+  image: factory-iot-glo:local
+  build: .
+  restart: unless-stopped
+  depends_on:
+    broker:
+      condition: service_started
+  networks:
+    - factory-private
+
+# defines the services used by the factory simulation
+services:
+
+  # generates the mqtt broker password file
+  init-auth:
+    image: eclipse-mosquitto:2
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-ec"]
+    command: |
+      mosquitto_passwd -b -c /mosquitto/auth/passwords dispensary "$$MQTT_DISPENSARY_PASSWORD"
+      mosquitto_passwd -b /mosquitto/auth/passwords decant "$$MQTT_DECANT_PASSWORD"
+      mosquitto_passwd -b /mosquitto/auth/passwords elpo "$$MQTT_ELPO_PASSWORD"
+      mosquitto_passwd -b /mosquitto/auth/passwords eol "$$MQTT_EOL_PASSWORD"
+      mosquitto_passwd -b /mosquitto/auth/passwords warehouse "$$MQTT_WAREHOUSE_PASSWORD"
+      mosquitto_passwd -b /mosquitto/auth/passwords glo "$$MQTT_GLO_PASSWORD"
+      mosquitto_passwd -b /mosquitto/auth/passwords group_leader_1 "$$MQTT_GROUP_LEADER_1_PASSWORD"
+      mosquitto_passwd -b /mosquitto/auth/passwords group_leader_2 "$$MQTT_GROUP_LEADER_2_PASSWORD"
+      chown 1883:1883 /mosquitto/auth/passwords
+      chmod 600 /mosquitto/auth/passwords
+      echo 'MQTT password hashes initialised.'
+    environment:
+      MQTT_DISPENSARY_PASSWORD: ${MQTT_DISPENSARY_PASSWORD:?Run py setup_demo.py first}
+      MQTT_DECANT_PASSWORD: ${MQTT_DECANT_PASSWORD:?Run py setup_demo.py first}
+      MQTT_ELPO_PASSWORD: ${MQTT_ELPO_PASSWORD:?Run py setup_demo.py first}
+      MQTT_EOL_PASSWORD: ${MQTT_EOL_PASSWORD:?Run py setup_demo.py first}
+      MQTT_WAREHOUSE_PASSWORD: ${MQTT_WAREHOUSE_PASSWORD:?Run py setup_demo.py first}
+      MQTT_GLO_PASSWORD: ${MQTT_GLO_PASSWORD:?Run py setup_demo.py first}
+      MQTT_GROUP_LEADER_1_PASSWORD: ${MQTT_GROUP_LEADER_1_PASSWORD:?Run py setup_demo.py first}
+      MQTT_GROUP_LEADER_2_PASSWORD: ${MQTT_GROUP_LEADER_2_PASSWORD:?Run py setup_demo.py first}
+    volumes:
+      - broker-auth:/mosquitto/auth
+    networks:
+      - factory-private
+    restart: "no"
+
+  # configures the mqtt broker
+  broker:
+    image: eclipse-mosquitto:2
+    depends_on:
+      init-auth:
+        condition: service_completed_successfully
+    volumes:
+      - ./broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./broker/aclfile:/mosquitto/config/aclfile:ro
+      - broker-auth:/mosquitto/auth:ro
+    networks:
+      - factory-private
+    restart: unless-stopped
+
+  # simulates ingredient weighing and preparation
+  dispensary:
+    <<: *department
+    environment:
+      DEPARTMENT: dispensary
+      MQTT_USERNAME: dispensary
+      MQTT_PASSWORD: ${MQTT_DISPENSARY_PASSWORD:?Run py setup_demo.py first}
+
+  # simulates decant mixing
+  decant:
+    <<: *department
+    environment:
+      DEPARTMENT: decant
+      MQTT_USERNAME: decant
+      MQTT_PASSWORD: ${MQTT_DECANT_PASSWORD:?Run py setup_demo.py first}
+
+  # simulates elpo product filling
+  elpo:
+    <<: *department
+    environment:
+      DEPARTMENT: elpo
+      MQTT_USERNAME: elpo
+      MQTT_PASSWORD: ${MQTT_ELPO_PASSWORD:?Run py setup_demo.py first}
+
+  # simulates eol palletising and labelling
+  eol:
+    <<: *department
+    environment:
+      DEPARTMENT: eol
+      MQTT_USERNAME: eol
+      MQTT_PASSWORD: ${MQTT_EOL_PASSWORD:?Run py setup_demo.py first}
+
+  # simulates warehouse movements and finished product handling
+  warehouse:
+    <<: *department
+    environment:
+      DEPARTMENT: warehouse
+      MQTT_USERNAME: warehouse
+      MQTT_PASSWORD: ${MQTT_WAREHOUSE_PASSWORD:?Run py setup_demo.py first}
+      BATCH_INTERVAL_SECONDS: "60"
+
+  # monitors factory production events and breakdown reports
+  glo:
+    <<: *department
+    environment:
+      DEPARTMENT: glo
+      MQTT_USERNAME: glo
+      MQTT_PASSWORD: ${MQTT_GLO_PASSWORD:?Run py setup_demo.py first}
+
+  # allows authorised group leaders to issue production updates
+  glo-cli:
+    <<: *department
+    profiles:
+      - tools
+    restart: "no"
+    stdin_open: true
+    tty: true
+    entrypoint: ["python", "-m", "app.cli"]
+    command: ["--help"]
+
+
+  # runs mqtt authentication and access control tests
+  security-tests:
+    <<: *department
+    profiles:
+      - test
+    restart: "no"
+    command: ["python", "-m", "app.security_tests"]
+    environment:
+      MQTT_DISPENSARY_PASSWORD: ${MQTT_DISPENSARY_PASSWORD:?Run py setup_demo.py first}
+      MQTT_DECANT_PASSWORD: ${MQTT_DECANT_PASSWORD:?Run py setup_demo.py first}
+      MQTT_ELPO_PASSWORD: ${MQTT_ELPO_PASSWORD:?Run py setup_demo.py first}
+      MQTT_EOL_PASSWORD: ${MQTT_EOL_PASSWORD:?Run py setup_demo.py first}
+      MQTT_WAREHOUSE_PASSWORD: ${MQTT_WAREHOUSE_PASSWORD:?Run py setup_demo.py first}
+      MQTT_GLO_PASSWORD: ${MQTT_GLO_PASSWORD:?Run py setup_demo.py first}
+      MQTT_GROUP_LEADER_1_PASSWORD: ${MQTT_GROUP_LEADER_1_PASSWORD:?Run py setup_demo.py first}
+      MQTT_GROUP_LEADER_2_PASSWORD: ${MQTT_GROUP_LEADER_2_PASSWORD:?Run py setup_demo.py first}
+
+# creates an isolated network for the factory simulation
+networks:
+  factory-private:
+    driver: bridge
+
+# stores the mqtt password hashes in a docker volume
+volumes:
+  broker-auth:
