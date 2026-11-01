@@ -3,7 +3,7 @@
 import os
 from threading import Event
 from uuid import uuid4
-import paho.mqtt.client as mqtt  # type: ignore[reportMissingImports]
+import mqtt as mqtt
 
 
 # MQTT broker hostname and port
