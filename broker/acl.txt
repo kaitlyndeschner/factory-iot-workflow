@@ -1,0 +1,152 @@
+# define mqtt access permissions for each factory department; each account can only access its assigned topics
+
+
+# dispensary account
+user dispensary
+
+# allow dispensary to publish ingredient weighing updates
+topic write factory/events/dispensary/SHORT_WEIGHTS_STARTED
+topic write factory/events/dispensary/SHORT_WEIGHTS_COMPLETE
+
+# allow dispensary to report equipment breakdowns
+topic write factory/breakdowns/dispensary
+
+# receive ingredient delivery notifications from warehouse
+topic read factory/events/warehouse/DISPENSARY_DISPATCHED
+topic read factory/events/warehouse/DISPENSARY_DELIVERED
+
+# receive breakdown and production management updates
+topic read factory/breakdowns/dispensary
+topic read factory/glo/schedule
+topic read factory/glo/batch/dispensary
+topic read factory/glo/resume/dispensary
+
+
+# decant account
+user decant
+
+# allow decant to publish dry ingredient mixing updates
+topic write factory/events/decant/MIXING_STARTED
+topic write factory/events/decant/MIXING_COMPLETE
+
+# allow decant to report equipment breakdowns
+topic write factory/breakdowns/decant
+
+# receive ingredient deliveries and completed short weights
+topic read factory/events/warehouse/DECANT_DISPATCHED
+topic read factory/events/warehouse/DECANT_DELIVERED
+topic read factory/events/dispensary/SHORT_WEIGHTS_COMPLETE
+
+# receive breakdown and production management updates
+topic read factory/breakdowns/decant
+topic read factory/glo/schedule
+topic read factory/glo/batch/decant
+topic read factory/glo/resume/decant
+
+
+# elpo account
+user elpo
+
+# allow elpo to publish product filling updates
+topic write factory/events/elpo/ELPO_STARTED
+topic write factory/events/elpo/ELPO_COMPLETE
+
+# allow elpo to report equipment breakdowns
+topic write factory/breakdowns/elpo
+
+# receive notification when dry ingredient mixing is complete
+topic read factory/events/decant/MIXING_COMPLETE
+
+# receive breakdown and production management updates
+topic read factory/breakdowns/elpo
+topic read factory/glo/schedule
+topic read factory/glo/batch/elpo
+topic read factory/glo/resume/elpo
+
+
+# eol account
+user eol
+
+# allow eol to publish palletising and labelling updates
+topic write factory/events/eol/EOL_STARTED
+topic write factory/events/eol/EOL_COMPLETE
+
+# allow eol to report equipment breakdowns
+topic write factory/breakdowns/eol
+
+# receive notifications from elpo and warehouse
+topic read factory/events/elpo/ELPO_COMPLETE
+topic read factory/events/warehouse/EOL_RECEIVED
+
+# receive breakdown and production management updates
+topic read factory/breakdowns/eol
+topic read factory/glo/schedule
+topic read factory/glo/batch/eol
+topic read factory/glo/resume/eol
+
+
+# warehouse account
+user warehouse
+
+# allow warehouse to publish ingredient dispatch and delivery updates
+topic write factory/events/warehouse/DECANT_DISPATCHED
+topic write factory/events/warehouse/DECANT_DELIVERED
+topic write factory/events/warehouse/DISPENSARY_DISPATCHED
+topic write factory/events/warehouse/DISPENSARY_DELIVERED
+
+# allow warehouse to publish finished product updates
+topic write factory/events/warehouse/EOL_RECEIVED
+topic write factory/events/warehouse/SHIPMENT_DISPATCHED
+
+# allow warehouse to report equipment breakdowns
+topic write factory/breakdowns/warehouse
+
+# receive notification when eol completes its work
+topic read factory/events/eol/EOL_COMPLETE
+
+# receive breakdown and production management updates
+topic read factory/breakdowns/warehouse
+topic read factory/glo/schedule
+topic read factory/glo/batch/warehouse
+topic read factory/glo/resume/warehouse
+
+
+# glo monitoring account
+user glo
+
+# allow glo to monitor production events from all departments
+topic read factory/events/#
+
+# allow glo to receive breakdown reports
+topic read factory/breakdowns/+
+
+# allow glo to monitor production management updates
+topic read factory/glo/#
+
+# the glo monitoring account has no publishing permissions
+
+
+# first authorised group leader account
+user group_leader_1
+
+# allow production schedule updates to be sent to all departments
+topic write factory/glo/schedule
+
+# allow batch changes to be sent to selected departments
+topic write factory/glo/batch/+
+
+# allow production resumption notices to selected departments
+topic write factory/glo/resume/+
+
+
+# second authorised group leader account
+user group_leader_2
+
+# allow production schedule updates to be sent to all departments
+topic write factory/glo/schedule
+
+# allow batch changes to be sent to selected departments
+topic write factory/glo/batch/+
+
+# allow production resumption notices to selected departments
+topic write factory/glo/resume/+
