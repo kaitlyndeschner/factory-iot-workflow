@@ -11,7 +11,7 @@ from app.model import (
     GLO, ALL_DEPARTMENTS, make_event, topic_for,
     subscriptions_for, department_label, valid_received_event
 )
-from mqtt import make_client, connect_client
+from app.mqtt import make_client, connect_client
 
 
 class Department:

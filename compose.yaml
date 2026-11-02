@@ -20,18 +20,20 @@ services:
     image: eclipse-mosquitto:2
     user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
-    command: |
-      mosquitto_passwd -b -c /mosquitto/auth/passwords dispensary "$$MQTT_DISPENSARY_PASSWORD"
-      mosquitto_passwd -b /mosquitto/auth/passwords decant "$$MQTT_DECANT_PASSWORD"
-      mosquitto_passwd -b /mosquitto/auth/passwords elpo "$$MQTT_ELPO_PASSWORD"
-      mosquitto_passwd -b /mosquitto/auth/passwords eol "$$MQTT_EOL_PASSWORD"
-      mosquitto_passwd -b /mosquitto/auth/passwords warehouse "$$MQTT_WAREHOUSE_PASSWORD"
-      mosquitto_passwd -b /mosquitto/auth/passwords glo "$$MQTT_GLO_PASSWORD"
-      mosquitto_passwd -b /mosquitto/auth/passwords group_leader_1 "$$MQTT_GROUP_LEADER_1_PASSWORD"
-      mosquitto_passwd -b /mosquitto/auth/passwords group_leader_2 "$$MQTT_GROUP_LEADER_2_PASSWORD"
-      chown 1883:1883 /mosquitto/auth/passwords
-      chmod 600 /mosquitto/auth/passwords
-      echo 'MQTT password hashes initialised.'
+    command: 
+      - |
+        rm -f /mosquitto/auth/passwords
+        mosquitto_passwd -c -b /mosquitto/auth/passwords dispensary "$$MQTT_DISPENSARY_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwords decant "$$MQTT_DECANT_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwords elpo "$$MQTT_ELPO_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwords eol "$$MQTT_EOL_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwords warehouse "$$MQTT_WAREHOUSE_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwords glo "$$MQTT_GLO_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwords group_leader_1 "$$MQTT_GROUP_LEADER_1_PASSWORD"
+        mosquitto_passwd -b /mosquitto/auth/passwords group_leader_2 "$$MQTT_GROUP_LEADER_2_PASSWORD"
+        chown 1883:1883 /mosquitto/auth/passwords
+        chmod 600 /mosquitto/auth/passwords
+        echo 'MQTT password hashes initialised.'
     environment:
       MQTT_DISPENSARY_PASSWORD: ${MQTT_DISPENSARY_PASSWORD:?Run py setup_demo.py first}
       MQTT_DECANT_PASSWORD: ${MQTT_DECANT_PASSWORD:?Run py setup_demo.py first}
