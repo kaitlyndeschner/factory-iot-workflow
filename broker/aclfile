@@ -114,7 +114,7 @@ topic read factory/glo/resume/warehouse
 # glo monitoring account
 user glo
 
-# allow glo to monitor production events from all departments
+# allow glo to monitor production events from all departments; no publishing permissions
 topic read factory/events/#
 
 # allow glo to receive breakdown reports
@@ -122,8 +122,6 @@ topic read factory/breakdowns/+
 
 # allow glo to monitor production management updates
 topic read factory/glo/#
-
-# the glo monitoring account has no publishing permissions
 
 
 # first authorised group leader account

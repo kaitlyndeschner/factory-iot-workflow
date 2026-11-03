@@ -4,7 +4,7 @@ import json
 import os
 from queue import Empty, Queue
 from uuid import uuid4
-import mqtt as mqtt
+import paho.mqtt.client as mqtt
 from app.model import GLO, make_event, topic_for
 
 
